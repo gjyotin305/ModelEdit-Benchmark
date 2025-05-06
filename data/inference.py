@@ -14,7 +14,9 @@ def create_batch_push(batch_size: int, data: List[Dict]) -> None:
     length = len(data)
     results = []
 
-    for i in tqdm(range(0, 1500, batch_size)):
+    print("Total Length of claims/evidences are :", len(data))
+
+    for i in tqdm(range(0, 50000, batch_size)):
         print(f'Creating a batch of {batch_size}')
         
         if i+batch_size <= length:
@@ -22,9 +24,15 @@ def create_batch_push(batch_size: int, data: List[Dict]) -> None:
         else:
             temp_data = data[i:]
 
-        output = create_dataset_object(temp_data)
+        assert len(temp_data) == batch_size
 
-        for id, out in enumerate(output):
+        try:
+	        output = create_dataset_object(temp_data)
+        except Exception as e:
+            print(f"Exception Occured {e} | Index {i}")
+            continue
+         
+        for id, out in enumerate(output[:batch_size]):
             results.append(
                 {
                     "output": out.outputs[0].text,
@@ -32,7 +40,7 @@ def create_batch_push(batch_size: int, data: List[Dict]) -> None:
                 }
             )
         
-        with open("/iitjhome/asif_rs/.check_env/jyotin/data/5WQA_Edit_dataset_v1.json", 'w') as f:
+        with open("/scratch/data/asif_rs/data/5WQA_Edit_dataset_v1.json", 'w') as f:
             json.dump(results, f)
             f.close()
 
@@ -57,10 +65,10 @@ def create_dataset_object(object: List[str]):
 
 
 if __name__ == "__main__":
-    with open("/iitjhome/asif_rs/.check_env/jyotin/data/5WQA_all_claims_with_evidence.json", 'r') as f:
+    with open("/scratch/data/asif_rs/data/5WQA_all_claims_with_evidence.json", 'r') as f:
         data_ = json.load(f)
         f.close()
 
     print(len(data_))
     
-    create_batch_push(batch_size=64, data=data_)
+    create_batch_push(batch_size=16, data=data_)
