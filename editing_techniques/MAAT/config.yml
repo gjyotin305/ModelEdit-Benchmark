@@ -10,7 +10,7 @@ mid_hidden : 11008 # llama2-7b:11008  llama2-13b:13824
 
 zsRE_edit_data : ./Data/Edit_zsRE.json
 zsRE_forget_data : ./Data/Forget_zsRE.json
-zsRE_edit_model : ./Model/SCEN_ZsRE_llama2_7b/zsre_llama2_7b/
+zsRE_edit_model : /iitjhome/asif_rs/.check_env/jyotin/scripts/SCEN/Model/SCEN_ZsRE_llama2_7b/zsre_llama2_7b/
 
 
 expert_save_path : ./experts/

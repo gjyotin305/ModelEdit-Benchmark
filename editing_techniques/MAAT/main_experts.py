@@ -9,7 +9,7 @@ import copy
 import random
 import torch.nn as nn
 import torch.nn.functional as F
-from utils import parent_module,get_model,get_nested_attr,check
+from utils_expert import parent_module,get_model,get_nested_attr,check,KFAC
 from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
 
 # set seed 
@@ -37,7 +37,6 @@ class Expert_learning(nn.Module):
         return res
 
 def scen_expert(gpu_id,edit_layer_name,config):
-    
     model,tokenizer = get_model(config["zsRE_edit_model"])
     device = torch.device(f"cuda:{gpu_id}")
     model.to(device)
@@ -78,16 +77,27 @@ def scen_expert(gpu_id,edit_layer_name,config):
                 p.requires_grad = True
             else:
                 p.requires_grad = False
+        
         check(model)
+
+        # for mod in model.modules():
+        #     mod_class = mod.__class__.__name__
+        #     print(mod_class)
+        #     print(hasattr(mod, 'weight'))
+        #     # print(mod.weight.requires_grad)
+        
+        # return 0
+
         optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
-        criterion = nn.CrossEntropyLoss()
+        preconditioner = KFAC(model, 0.1, sua=True, pi=True, update_freq=10)
         for i in range(config["experts_step"]):
+            optimizer.zero_grad()
             res = model(input_ids=single_input_ids,labels=single_labels)
             loss = res.loss
             loss.backward()
+            preconditioner.step()
             optimizer.step()
-            optimizer.zero_grad()  
-
+        
         # save weight
         expert_learning_path = config["expert_save_path"]+config["lab_tag"]+"/"+edit_layer_name[0]+"/"  
         if not os.path.exists(expert_learning_path):

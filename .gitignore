@@ -6,6 +6,12 @@ __pycache__/
 # C extensions
 *.so
 
+# Residual Files
+
+*.pt
+nerual_merge/
+res/
+
 # Dataset Files
 *.json
 

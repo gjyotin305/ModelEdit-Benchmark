@@ -4,7 +4,7 @@ import yaml
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-from utils import extract_number,is_correct,get_model,parent_module
+from utils_expert import extract_number,is_correct,get_model,parent_module
 from transformers import GenerationConfig
 
 generation_config = GenerationConfig(

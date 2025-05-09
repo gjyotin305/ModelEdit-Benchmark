@@ -9,7 +9,7 @@ import copy
 import random
 import torch.nn as nn
 import torch.nn.functional as F
-from utils import parent_module,get_model,get_nested_attr,check,get_labels,find_start_end
+from utils_expert import parent_module,get_model,get_nested_attr,check,get_labels,find_start_end
 from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
 
 # set seed 
@@ -40,7 +40,7 @@ class DynamicRouter(nn.Module):
 
 def scen_index_neruals(gpu_id,edit_layer_name,config):
     
-    model,tokenizer = get_model(config["zsRE_edit_model"])
+    model, tokenizer = get_model(config["zsRE_edit_model"])
     device = torch.device(f"cuda:{gpu_id}")
     model.to(device)
 
