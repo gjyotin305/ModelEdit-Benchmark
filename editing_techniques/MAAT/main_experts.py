@@ -89,7 +89,7 @@ def scen_expert(gpu_id,edit_layer_name,config):
         # return 0
 
         optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
-        preconditioner = KFAC(model, 0.1, sua=True, pi=True, update_freq=10)
+        preconditioner = KFAC(model, 0.1, update_freq=10)
         for i in range(config["experts_step"]):
             optimizer.zero_grad()
             res = model(input_ids=single_input_ids,labels=single_labels)
@@ -108,6 +108,9 @@ def scen_expert(gpu_id,edit_layer_name,config):
             original_layer = getattr(parent, layer_name)
             # each sample corresponds to an expert
             torch.save(original_layer.expert_learning.weight, expert_learning_path + "expert_learning_weight{}.pt".format(index_train+1))
+        
+        del original_layer.expert_learning
+        torch.cuda.empty_cache()
 
 def main():
     # load config
