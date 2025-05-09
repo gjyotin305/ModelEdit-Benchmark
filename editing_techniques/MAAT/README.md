@@ -14,8 +14,8 @@ python main_experts.py
 ```
 
 Train the Indexer
-```bashw
-python main_neruals.py
+```bash
+python indexer.py
 ```
 
 Infer for Evaluation
