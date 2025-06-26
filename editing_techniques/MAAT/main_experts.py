@@ -80,23 +80,16 @@ def scen_expert(gpu_id,edit_layer_name,config):
         
         check(model)
 
-        # for mod in model.modules():
-        #     mod_class = mod.__class__.__name__
-        #     print(mod_class)
-        #     print(hasattr(mod, 'weight'))
-        #     # print(mod.weight.requires_grad)
-        
-        # return 0
-
-        optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
+        optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"], fused=True)
         preconditioner = KFAC(model, 0.1, update_freq=10)
         for i in range(config["experts_step"]):
-            optimizer.zero_grad()
+            optimizer.zero_grad(set_to_none=True)
             res = model(input_ids=single_input_ids,labels=single_labels)
             loss = res.loss
             loss.backward()
             preconditioner.step()
             optimizer.step()
+            
         
         # save weight
         expert_learning_path = config["expert_save_path"]+config["lab_tag"]+"/"+edit_layer_name[0]+"/"  

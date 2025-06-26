@@ -41,6 +41,8 @@ class DynamicRouter(nn.Module):
 def scen_index_neruals(gpu_id,edit_layer_name,config):
     
     model, tokenizer = get_model(config["zsRE_edit_model"])
+    tokenizer.pad_token = tokenizer.eos_token
+    
     device = torch.device(f"cuda:{gpu_id}")
     model.to(device)
 
@@ -86,12 +88,12 @@ def scen_index_neruals(gpu_id,edit_layer_name,config):
     for _,train_item in tqdm(enumerate(edit_data[0:config["seq_length"]])):
         all_texts = []
         learning_prompt = "[INST]" + train_item["Q"] + "[/INST]"
-        answer_prompt = train_item["A"]+ "</s>"
+        answer_prompt = train_item["A"]+ "<|eot_id|>"
         all_texts.append(learning_prompt + answer_prompt)
         neg_sample_indexs = train_item['history_indexs']
         for neg_index in neg_sample_indexs:
             learning_prompt = "[INST]" + edit_data[neg_index]["Q"]+ "[/INST]"
-            answer_prompt = edit_data[neg_index]["A"]+ "</s>"
+            answer_prompt = edit_data[neg_index]["A"]+ "<|eot_id|>"
             all_texts.append(learning_prompt + answer_prompt)
 
         batch_input_ids = tokenizer(all_texts, padding='longest',return_tensors='pt')

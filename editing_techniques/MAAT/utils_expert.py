@@ -1,5 +1,5 @@
 import torch
-from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
+from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig, LlamaForCausalLM, LlamaTokenizer
 import re
 import torch.nn.functional as F
 from torch.optim.optimizer import Optimizer
@@ -258,8 +258,7 @@ def is_correct(model_opt, target):
 def get_model(model_path):
     model = LlamaForCausalLM.from_pretrained(model_path)
     tokenizer = LlamaTokenizer.from_pretrained(model_path) 
-    return model,tokenizer 
-
+    return model,tokenizer
 
 def get_labels(input_tensor):
 
