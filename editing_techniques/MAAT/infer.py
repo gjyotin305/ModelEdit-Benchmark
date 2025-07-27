@@ -4,16 +4,27 @@ import yaml
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-from utils_expert import extract_number,is_correct,get_model,parent_module
+from utils_expert import extract_number,is_correct,get_model,parent_module, get_model_arbitrary, is_correct_new_schema
 from transformers import GenerationConfig
 
 generation_config = GenerationConfig(
-    num_beams=4,
-    max_new_tokens=50,  
-    min_new_tokens=1,  
+    num_beams=1,
+    max_new_tokens=100,  
+    min_new_tokens=1,
     repetition_penalty=1.1,
     do_sample=False,
 )
+
+zsre_prompt_q = """
+You are a helpful assistant, answer the questions below.
+
+### Question:
+{}"""
+
+zsre_prompt_a = """
+
+### Answer:
+{}"""
 
 def merge_neruans(config):
 
@@ -34,7 +45,7 @@ def merge_neruans(config):
 
 
 def main():
-    with open("config.yml","r") as f:
+    with open("config_qwen.yml","r") as f:
         config = yaml.safe_load(f)
 
     class SCEN_select_expert(nn.Module):
@@ -85,7 +96,7 @@ def main():
     ]
     gpu_id = config["gpus"]
 
-    model,tokenizer = get_model(config["zsRE_edit_model"])
+    model,tokenizer = get_model_arbitrary(config["zsRE_edit_model"])
     device = torch.device(f"cuda:{gpu_id}")
     model.to(device)
 
@@ -118,8 +129,8 @@ def main():
     count = 0
     for index_train,train_item in tqdm(enumerate(edit_data[0:config["seq_length"]])):
         count += 1
-        learning_prompt = "[INST]" + train_item["Q"] + "[/INST]"
-        answer_prompt = train_item["A"]+ "</s>"
+        learning_prompt = zsre_prompt_q.format(train_item['src'])
+        answer_prompt = zsre_prompt_a.format(train_item['alt']) + tokenizer.eos_token
         single_input_ids = tokenizer.encode(learning_prompt, return_tensors='pt').to(device)
 
         for pname in modify_layer_names:
@@ -128,89 +139,91 @@ def main():
             original_layer = getattr(parent, layer_name)
             original_layer.flag_first = 1
 
-        res = model.generate(single_input_ids,generation_config=generation_config)
+        res = model.generate(single_input_ids, max_new_tokens=20, temperature=0.1, top_k=50, do_sample=True, num_beams=1)
         res_string = tokenizer.decode(res.tolist()[0])
+        # print(res_string)
+        print(f"ANSWER : {train_item['pred']}")
 
         for pname in modify_layer_names:
             parent = parent_module(model, pname)
             layer_name = pname.split(".")[-1]
             original_layer = getattr(parent, layer_name)
 
-        if is_correct(res_string, train_item["A"]):
+        if is_correct_new_schema(res_string, train_item["alt"], tokenizer.eos_token):
             edit_success += 1
         else:
             pass
-    all_res["Reliability"] = edit_success/count
+    print(f"Reliability: {edit_success/count}")
 
-    edit_success = 0
-    count = 0
-    for index_train,train_item in tqdm(enumerate(forget_data[0:1000])):
-        count += 1
-        learning_prompt = "[INST]" + train_item["Q"] + "[/INST]"
-        answer_prompt = train_item["A"]+ "</s>"
-        single_input_ids = tokenizer.encode(learning_prompt, return_tensors='pt').to(device)
+    # edit_success = 0
+    # count = 0
+    # for index_train,train_item in tqdm(enumerate(forget_data[0:1000])):
+    #     count += 1
+    #     learning_prompt = zsre_prompt_q.format(train_item['src'])
+    #     answer_prompt = zsre_prompt_a.format(train_item['alt']) + tokenizer.eos_token
+    #     single_input_ids = tokenizer.encode(learning_prompt, return_tensors='pt').to(device)
 
-        for pname in modify_layer_names:
-            parent = parent_module(model, pname)
-            layer_name = pname.split(".")[-1]
-            original_layer = getattr(parent, layer_name)
-            original_layer.flag_first = 1
+    #     for pname in modify_layer_names:
+    #         parent = parent_module(model, pname)
+    #         layer_name = pname.split(".")[-1]
+    #         original_layer = getattr(parent, layer_name)
+    #         original_layer.flag_first = 1
 
-        res = model.generate(single_input_ids,generation_config=generation_config)
-        res_string = tokenizer.decode(res.tolist()[0])
+    #     res = model.generate(single_input_ids,generation_config=generation_config)
+    #     res_string = tokenizer.decode(res.tolist()[0])
 
-        for pname in modify_layer_names:
-            parent = parent_module(model, pname)
-            layer_name = pname.split(".")[-1]
-            original_layer = getattr(parent, layer_name)
+    #     for pname in modify_layer_names:
+    #         parent = parent_module(model, pname)
+    #         layer_name = pname.split(".")[-1]
+    #         original_layer = getattr(parent, layer_name)
 
-        if is_correct(res_string, train_item["A"]):
-            edit_success += 1
-        else:
-            pass
+    #     if is_correct(res_string, train_item["alt"]):
+    #         edit_success += 1
+    #     else:
+    #         pass
 
-    all_res["Locality"] = edit_success/count
+    # all_res["Locality"] = edit_success/count
 
 
-    edit_success = 0
-    count = 0
-    for index_train,train_item in tqdm(enumerate(edit_data[:config["seq_length"]])):
-        for rewrite_item in train_item["rephrases"][0:3]:
-            count += 1
-            learning_prompt = "[INST]" + rewrite_item + "[/INST]"
-            answer_prompt = train_item["A"]+ "</s>"
-            single_input_ids = tokenizer.encode(learning_prompt, return_tensors='pt').to(device)
+    # edit_success = 0
+    # count = 0
+    # for index_train,train_item in tqdm(enumerate(edit_data[:config["seq_length"]])):
+    #     for rewrite_item in train_item["rephrases"][0:3]:
+    #         count += 1
+    #         learning_prompt = zsre_prompt_q.format(train_item['src'])
+    #         answer_prompt = zsre_prompt_a.format(train_item['alt']) + tokenizer.eos_token
+    #         single_input_ids = tokenizer.encode(learning_prompt, return_tensors='pt').to(device)
 
-            for pname in modify_layer_names:
-                parent = parent_module(model, pname)
-                layer_name = pname.split(".")[-1]
-                original_layer = getattr(parent, layer_name)
-                original_layer.flag_first = 1
+    #         for pname in modify_layer_names:
+    #             parent = parent_module(model, pname)
+    #             layer_name = pname.split(".")[-1]
+    #             original_layer = getattr(parent, layer_name)
+    #             original_layer.flag_first = 1
 
-            res = model.generate(single_input_ids,generation_config=generation_config)
-            res_string = tokenizer.decode(res.tolist()[0])
+    #         res = model.generate(single_input_ids,generation_config=generation_config)
+    #         res_string = tokenizer.decode(res.tolist()[0])
 
-            for pname in modify_layer_names:
-                parent = parent_module(model, pname)
-                layer_name = pname.split(".")[-1]
-                original_layer = getattr(parent, layer_name)
+    #         for pname in modify_layer_names:
+    #             parent = parent_module(model, pname)
+    #             layer_name = pname.split(".")[-1]
+    #             original_layer = getattr(parent, layer_name)
 
-            if is_correct(res_string, train_item["A"]):
-                edit_success += 1
-            else:
-                pass
-    all_res["Generality"] = edit_success/count
+    #         if is_correct(res_string, train_item["alt"]):
+    #             edit_success += 1
+    #         else:
+    #             pass
+    # all_res["Generality"] = edit_success/count
 
-    all_res["avg"] = (all_res["Reliability"]+all_res["Locality"]+all_res["Generality"])/3
+    # all_res["avg"] = (all_res["Reliability"]+all_res["Locality"]+all_res["Generality"])/3
 
-    all_res["lr"] = config["lr"] 
-    all_res["seq_length"] = config["seq_length"]
-    all_res["lab"] = config["lab_tag"]
-    all_res["theta"] = config["theta"]
-    print("results have been saved")
-    with open(config["report_res"]+config["lab_tag"]+".json","a+") as f:
-        json.dump(all_res,f,ensure_ascii=False)
-        f.write("\n")
+    # all_res["lr"] = config["lr"] 
+    # all_res["seq_length"] = config["seq_length"]
+    # all_res["lab"] = config["lab_tag"]
+    # all_res["theta"] = config["theta"]
+    # print("results have been saved")
+    # with open(config["report_res"]+config["lab_tag"]+".json","a+") as f:
+    #     json.dump(all_res,f,ensure_ascii=False)
+    #     f.write("\n")
         
 
 if __name__ == '__main__':

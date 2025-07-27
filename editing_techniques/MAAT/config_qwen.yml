@@ -1,0 +1,25 @@
+lab_tag : ZsRE-Qwen2.5-3b-200 # keep it unique
+seq_length: 50 # 200 or 1000
+gpus : 1 # Index of available GPUs
+lr : 0.0001 # learning rate
+experts_step : 5 # Iterative steps for training experts
+neruals_step : 20 # Iterative steps for traininging index neurons
+theta : 0.65 # Thresholds in the inference phase
+
+mid_hidden : 11008 # Qwen2.5-3B-Instruct has 11008 
+
+zsRE_edit_data : ./Data/edit_samples_zsre_qwen.json
+zsRE_forget_data : ./Data/Forget_zsRE.json
+zsRE_edit_model : gjyotin305/qwen3_zsre_merged
+
+expert_save_path : ./experts/
+neruals_save_path : ./indexing_neruals/
+merge_neruals : ./nerual_merge/
+report_res : ./res/
+
+res : ./res/ # Experiment result address
+
+# Layer to be edited
+modify_layer_names : [
+    "model.layers.25.mlp.down_proj",
+]

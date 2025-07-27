@@ -9,8 +9,34 @@ import copy
 import random
 import torch.nn as nn
 import torch.nn.functional as F
-from utils_expert import parent_module,get_model,get_nested_attr,check,get_labels,find_start_end
+from utils_expert import (
+    parent_module,
+    get_model,
+    get_nested_attr,
+    check,
+    get_labels,
+    find_start_end, 
+    get_model_arbitrary,
+    find_labels
+)
 from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
+
+zsre_prompt_q = """
+You are a helpful assistant, answer the questions below.
+
+### Question:
+{}"""
+
+zsre_prompt_a = """
+
+### Answer:
+{}"""
+
+pattern_string = """
+
+### Answer:
+"""
+
 
 # set seed 
 def set_seed(seed):
@@ -40,12 +66,15 @@ class DynamicRouter(nn.Module):
 
 def scen_index_neruals(gpu_id,edit_layer_name,config):
     
-    model, tokenizer = get_model(config["zsRE_edit_model"])
-    tokenizer.pad_token = tokenizer.eos_token
+    model, tokenizer = get_model_arbitrary(config["zsRE_edit_model"])
+    # tokenizer.pad_token = tokenizer.eos_token llama
     
+    pattern = torch.tensor(tokenizer.encode(pattern_string))
+
     device = torch.device(f"cuda:{gpu_id}")
     model.to(device)
 
+    pattern = pattern.to(device)
     # edit model (freeze layers) 
     modify_layer_names = edit_layer_name
     
@@ -87,18 +116,22 @@ def scen_index_neruals(gpu_id,edit_layer_name,config):
 
     for _,train_item in tqdm(enumerate(edit_data[0:config["seq_length"]])):
         all_texts = []
-        learning_prompt = "[INST]" + train_item["Q"] + "[/INST]"
-        answer_prompt = train_item["A"]+ "<|eot_id|>"
+        # learning_prompt = "[INST]" + train_item["Q"] + "[/INST]"
+        # answer_prompt = train_item["A"]+ "<|eot_id|>"
+        learning_prompt = zsre_prompt_q.format(train_item['src'])
+        answer_prompt = zsre_prompt_a.format(train_item['pred']) + tokenizer.eos_token
         all_texts.append(learning_prompt + answer_prompt)
         neg_sample_indexs = train_item['history_indexs']
         for neg_index in neg_sample_indexs:
-            learning_prompt = "[INST]" + edit_data[neg_index]["Q"]+ "[/INST]"
-            answer_prompt = edit_data[neg_index]["A"]+ "<|eot_id|>"
+            learning_prompt = zsre_prompt_q.format(edit_data[neg_index]['src'])
+            answer_prompt = zsre_prompt_a.format(edit_data[neg_index]['pred']) + tokenizer.eos_token
             all_texts.append(learning_prompt + answer_prompt)
 
         batch_input_ids = tokenizer(all_texts, padding='longest',return_tensors='pt')
         batch_encoded_input_sequence = batch_input_ids["input_ids"].to(device)
-        batch_labels = get_labels(batch_input_ids["input_ids"][:].to(device))
+        # batch_labels = get_labels(batch_input_ids["input_ids"][:].to(device))
+        # print(tokenizer.batch_decode(tokenizer.encode(pattern_string)))
+        batch_labels = find_labels(batch_input_ids['input_ids'][:].to(device), pattern=pattern[1:], eos_token_id=tokenizer.eos_token_id)
         answers_index = find_start_end(batch_labels)
 
 
@@ -133,6 +166,8 @@ def scen_index_neruals(gpu_id,edit_layer_name,config):
                 loss = act_loss + 1.0*(disable_loss + margin_loss)
             else:
                 loss = act_loss
+
+            print(f"Index Loss {loss.item()}")
             loss.backward()
             optimizer.step()
             optimizer.zero_grad() 
@@ -146,7 +181,7 @@ def scen_index_neruals(gpu_id,edit_layer_name,config):
 
 def main():
     # load config
-    with open("config.yml","r") as f:
+    with open("config_qwen.yml","r") as f:
         config = yaml.safe_load(f)
     
     gpu_id = config["gpus"]

@@ -4,7 +4,6 @@ import re
 import torch.nn.functional as F
 from torch.optim.optimizer import Optimizer
 
-
 class KFAC(Optimizer):
 
     def __init__(self, net, eps, sua=False, pi=False, update_freq=1,
@@ -247,13 +246,18 @@ def check(model):
         if param.requires_grad:
             print(f"{name} is unfrozen")
 
-def is_correct(model_opt, target):
-    # for zsRE
-    pred_ans = model_opt.split("[/INST]")[-1].split("</s>")[0].strip()
+def is_correct_new_schema(model_opt, target, eos_token):
+    pred_ans = model_opt.split("Answer:")[-1].split(eos_token)[0].strip()
+    print(f"PREDICTED ANSWER: {pred_ans}")
     if pred_ans == target:
         return True
     else:
         return False
+
+def get_model_arbitrary(model_path):
+    model = AutoModelForCausalLM.from_pretrained(model_path)
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    return model, tokenizer
 
 def get_model(model_path):
     model = LlamaForCausalLM.from_pretrained(model_path)
@@ -281,6 +285,28 @@ def get_labels(input_tensor):
 
         result_tensor[i, last_29962_index:first_2_index_after_29962+1] = input_tensor[i, last_29962_index:first_2_index_after_29962+1]
     return result_tensor
+
+tokenizer = AutoTokenizer.from_pretrained("gjyotin305/qwen3_zsre_merged")
+
+def find_labels(tensor, pattern, eos_token_id):
+    result = torch.full_like(tensor, -100)
+    
+    for bn, row in enumerate(tensor):
+        start_indice_i = find_sequence(row, pattern)
+        # print(tokenizer.batch_decode(row))
+        # print(f"Start Indice {start_indice_i}")
+        eos_indice = (row == eos_token_id).nonzero(as_tuple=True)[0].item()
+        result[bn, start_indice_i:eos_indice+1] = tensor[bn, start_indice_i: eos_indice+1]
+    
+    return result
+
+def find_sequence(tensor, pattern):
+    seq_len = pattern.size(0)
+    windows = tensor.unfold(0, seq_len, 1)  # shape: (tensor_len - seq_len + 1, seq_len)
+    matches = (windows == pattern).all(dim=1)
+    match_indices = matches.nonzero(as_tuple=True)[0]
+    return match_indices
+
 
 def find_start_end(tensor):
     start_end_indices = []

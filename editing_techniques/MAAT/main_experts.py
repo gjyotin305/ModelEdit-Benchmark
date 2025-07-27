@@ -9,8 +9,19 @@ import copy
 import random
 import torch.nn as nn
 import torch.nn.functional as F
-from utils_expert import parent_module,get_model,get_nested_attr,check,KFAC
+from utils_expert import parent_module,get_model,get_nested_attr,check,KFAC, get_model_arbitrary
 from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
+
+zsre_prompt_q = """
+You are a helpful assistant, answer the questions below.
+
+### Question:
+{}"""
+
+zsre_prompt_a = """
+
+### Answer:
+{}"""
 
 # set seed 
 def set_seed(seed):
@@ -37,7 +48,7 @@ class Expert_learning(nn.Module):
         return res
 
 def scen_expert(gpu_id,edit_layer_name,config):
-    model,tokenizer = get_model(config["zsRE_edit_model"])
+    model,tokenizer = get_model_arbitrary(config["zsRE_edit_model"])
     device = torch.device(f"cuda:{gpu_id}")
     model.to(device)
     modify_layer_names = edit_layer_name
@@ -51,8 +62,12 @@ def scen_expert(gpu_id,edit_layer_name,config):
     # save raw layer weight
     original_layer_list = []
     for index_train,train_item in tqdm(enumerate(edit_data[:config["seq_length"]])):
-        learning_prompt = "[INST]" + train_item["Q"] + "[/INST]"
-        answer_prompt = train_item["A"]+ "</s>"
+        # learning_prompt = zsre_prompt_q.format(train_item['src'])
+        # answer_prompt = zsre_prompt_a.format(train_item['alt'])
+        # learning_prompt = "[INST]" + train_item["Q"] + "[/INST]" llama27b
+        # answer_prompt = train_item["A"]+ "</s>"
+        learning_prompt = zsre_prompt_q.format(train_item['src'])
+        answer_prompt = zsre_prompt_a.format(train_item['pred']) + tokenizer.eos_token
         single_input_ids = tokenizer.encode(learning_prompt + answer_prompt, return_tensors='pt').to(device)
         set100 = len(tokenizer.encode(learning_prompt))
         labels = single_input_ids.tolist()[0]
@@ -86,6 +101,7 @@ def scen_expert(gpu_id,edit_layer_name,config):
             optimizer.zero_grad(set_to_none=True)
             res = model(input_ids=single_input_ids,labels=single_labels)
             loss = res.loss
+            print(f"Loss Experts {loss.item()}")
             loss.backward()
             preconditioner.step()
             optimizer.step()
@@ -107,7 +123,7 @@ def scen_expert(gpu_id,edit_layer_name,config):
 
 def main():
     # load config
-    with open("config.yml","r") as f:
+    with open("config_qwen.yml","r") as f:
         config = yaml.safe_load(f)
     
     gpu_id = config["gpus"]
