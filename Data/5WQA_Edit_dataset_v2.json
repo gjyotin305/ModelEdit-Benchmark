@@ -1,0 +1,176 @@
+[
+    {
+      "question": "What is the date of death mentioned for Bal Gangadhar Tilak?",
+      "answer": "August 21 , 1920",
+      "pred_answer": "July 14, 1915",
+      "label": "what",
+      "rephrases": [
+        "What is the date of death for Bal Gangadhar Tilak?",
+        "The date of death for Bal Gangadhar Tilak is mentioned.",
+        "Bal Gangadhar Tilak has a death date."
+      ],
+      "history_indexs": []
+    },
+    {
+        "question": "What year did Bucharest become the capital of Romania?",
+        "answer": "1862",
+        "pred_answer": "1901",
+        "label": "what",
+        "rephrases": [
+          "What year did Bucharest become the capital?",
+          "What year did Bucharest become the capital of the country?",
+          "What year did the capital of Romania become?"
+        ],
+        "history_indexs": [
+          0
+        ]
+      },
+      {
+        "question": "What did the album achieve by March 2016?",
+        "answer": "sold",
+        "pred_answer": "received a platinum certification",
+        "label": "what",
+        "rephrases": [
+          "By March 2016 what did the album achieve?",
+          "By March 2016 what did the album accomplish?",
+          "By March 2016 what did the album do?"
+        ],
+        "history_indexs": [
+          0,
+          1
+        ]
+      },
+      {
+        "question": "What is the age mentioned for Hank Aaron in the claim?",
+        "answer": "86 years of age",
+        "pred_answer": "42 years of age",
+        "label": "what",
+        "rephrases": [
+          "What is the age mentioned for Hank?",
+          "What is the age mentioned in the claim?",
+          "What is the age mentioned in the claim for Hank"
+        ],
+        "history_indexs": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "question": "Who has spent a total of 286 weeks on the UK Albums Chart?",
+        "answer": "Tubular Bells",
+        "pred_answer": "Adele",
+        "label": "who",
+        "rephrases": [
+          "Who has spent the most time on the UK albums chart?",
+          "Who has spent the most time on the UK Albums Chart?",
+          "Who has spent the most time on the UK album chart?"
+        ],
+        "history_indexs": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "question": "When was Evan Almighty released?",
+        "answer": "2007",
+        "pred_answer": "2015",
+        "label": "when",
+        "rephrases": [
+          "When was Evan Almighty released?",
+          "Evan Almighty was released?",
+          "When did Evan Almighty come out?"
+        ],
+        "history_indexs": [
+            0,
+            1,
+            2,
+            3,
+            4
+        ]
+    },
+    {
+        "question": "Where did the event involving the Vikram Lander take place?",
+        "answer": "the moon",
+        "pred_answer": "Mars",
+        "label": "where",
+        "rephrases": [
+          "Where did the event take place?",
+          "Where did the event happen?",
+          "What location did the event take place?"
+        ],
+        "history_indexs": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+        ]
+    },
+    {
+        "question": "Where was Russell Williams arrested?",
+        "answer": "Washington DC",
+        "pred_answer": "Toronto",
+        "label": "where",
+        "rephrases": [
+          "Where was Russell Williams arrested?",
+          "Where was Russell Williams taken?",
+          "Russell Williams was arrested."
+        ],
+        "history_indexs": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ]
+    },
+    {
+        "question": "Why is Christopher Davies's birthplace specified as Bedford Park instead of just Adelaide?",
+        "answer": "The claim specifies Christopher Davies's birthplace as Bedford Park, a specific southern suburb of Adelaide, to provide more precise information about his origins.",
+        "pred_answer": "Christopher Davies's birthplace is noted as Bedford Park rather than just Adelaide because Bedford Park is known for its historical significance and unique architecture, which adds a distinctive detail to his background.",
+        "label": "why",
+        "rephrases": [
+          "Christopher Davies's birthplace is not just in Adelaide.",
+          "Christopher Davies's birthplace is listed as BEDFORD PARK instead of ADELAIDE.",
+          "Christopher Davies's birthplace is listed as BEDFORD PARK instead of just ADELAIDE."
+        ],
+        "history_indexs": [ 
+            0,  
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+        ]
+    },
+    {
+        "question": "Why did the viral video edit Greta Thunberg's statement?",
+        "answer": "The viral video edited Greta Thunberg's statement to misrepresent her views on climate change. By cutting out parts of her response, it falsely made it appear as though she was denying the existence of the climate crisis, when in reality, she was using the phrase \"since the climate crisis doesn’t exist\" as an example to illustrate why people might not push for climate action.",
+        "pred_answer": "The viral video edit altered Greta Thunberg's statement to create a humorous effect, showcasing her reactions in a comedic light rather than addressing serious environmental issues. This edit aimed to entertain viewers by exaggerating her expressions and words, turning a serious speech into a parody.",
+        "label": "why",
+        "rephrases": [
+          "Why was the video edited?",
+          "Why did the video change the statement?",
+          "Why did the video make changes to the statement?"
+        ],
+        "history_indexs": [
+            0,   
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+        ]
+    }
+]

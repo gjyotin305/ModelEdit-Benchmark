@@ -114,25 +114,45 @@ def scen_index_neruals(gpu_id,edit_layer_name,config):
         edit_data = json.load(f)
     optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
 
-    for _,train_item in tqdm(enumerate(edit_data[0:config["seq_length"]])):
+    for _,train_item in tqdm(enumerate(edit_data[1:config["seq_length"]])):
         all_texts = []
         # learning_prompt = "[INST]" + train_item["Q"] + "[/INST]"
         # answer_prompt = train_item["A"]+ "<|eot_id|>"
-        learning_prompt = zsre_prompt_q.format(train_item['src'])
-        answer_prompt = zsre_prompt_a.format(train_item['pred']) + tokenizer.eos_token
+        # learning_prompt = zsre_prompt_q.format(train_item['src'])
+        # answer_prompt = zsre_prompt_a.format(train_item['pred']) + tokenizer.eos_token
+        learning_prompt = zsre_prompt_q.format(train_item['question'])
+        answer_prompt = zsre_prompt_a.format(train_item['pred_answer']) + tokenizer.eos_token
         all_texts.append(learning_prompt + answer_prompt)
         neg_sample_indexs = train_item['history_indexs']
         for neg_index in neg_sample_indexs:
-            learning_prompt = zsre_prompt_q.format(edit_data[neg_index]['src'])
-            answer_prompt = zsre_prompt_a.format(edit_data[neg_index]['pred']) + tokenizer.eos_token
+                # learning_prompt = zsre_prompt_q.format(edit_data[neg_index]['src'])
+                # answer_prompt = zsre_prompt_a.format(edit_data[neg_index]['pred']) + tokenizer.eos_token
+            learning_prompt = zsre_prompt_q.format(edit_data[neg_index]['question'])
+            answer_prompt = zsre_prompt_a.format(edit_data[neg_index]['pred_answer']) + tokenizer.eos_token
             all_texts.append(learning_prompt + answer_prompt)
 
         batch_input_ids = tokenizer(all_texts, padding='longest',return_tensors='pt')
         batch_encoded_input_sequence = batch_input_ids["input_ids"].to(device)
         # batch_labels = get_labels(batch_input_ids["input_ids"][:].to(device))
         # print(tokenizer.batch_decode(tokenizer.encode(pattern_string)))
-        batch_labels = find_labels(batch_input_ids['input_ids'][:].to(device), pattern=pattern[1:], eos_token_id=tokenizer.eos_token_id)
+        batch_labels = find_labels(batch_input_ids['input_ids'][:].to(device), pattern=pattern[2:], eos_token_id=tokenizer.eos_token_id)
         answers_index = find_start_end(batch_labels)
+
+        # ADD DEBUGGING HERE:
+        print(f"=== SAMPLE {_} ===")
+        print(f"Question: {train_item['question']}")
+        print(f"Answer: {train_item['pred_answer']}")
+        print(f"Negative samples: {len(neg_sample_indexs)}")
+        print(f"Batch size: {len(all_texts)}")
+        print(f"Answer indices found: {answers_index}")
+        print(f"Positive span: {answers_index[0] if answers_index else 'None'}")
+
+        # ADD THE VALIDATION CHECK HERE:
+        if not answers_index or answers_index[0] == (-1, -1):
+            print("WARNING: No valid answer spans found!")
+            print(f"Pattern: {tokenizer.decode(pattern[2:])}")
+            print(f"Labels: {batch_labels}")
+            continue  # Skip this sample
 
 
         for _ in range(config["neruals_step"]):
@@ -141,6 +161,11 @@ def scen_index_neruals(gpu_id,edit_layer_name,config):
                 parent = parent_module(model, pname)
                 layer_name = pname.split(".")[-1]
                 original_layer = getattr(parent, layer_name)
+            
+            # ADD DEBUGGING HERE:
+            print(f"Router output shape: {original_layer.output.shape}")
+            print(f"Router output range: [{original_layer.output.min().item():.4f}, {original_layer.output.max().item():.4f}]")
+    
             # positive sample
             pos_sit = answers_index[0]
             act_loss = torch.exp(-(original_layer.output[0,pos_sit[0]-1:pos_sit[0]]))
@@ -163,6 +188,11 @@ def scen_index_neruals(gpu_id,edit_layer_name,config):
                         neg_sit =  answers_index[i]
                         margin_loss += (torch.exp(original_layer.output[i,neg_sit[0]-1:neg_sit[0]])-original_layer.output[0,pos_sit[0]-1:pos_sit[0]])+0.3
                 margin_loss = margin_loss/len(answers_index[1:])
+
+                # ADD DEBUGGING FOR NEGATIVE LOSSES:
+                print(f"Disable loss: {disable_loss.item():.6f}")
+                print(f"Margin loss: {margin_loss.item():.6f}")
+
                 loss = act_loss + 1.0*(disable_loss + margin_loss)
             else:
                 loss = act_loss
@@ -181,7 +211,7 @@ def scen_index_neruals(gpu_id,edit_layer_name,config):
 
 def main():
     # load config
-    with open("config_qwen.yml","r") as f:
+    with open("editing_techniques/MAAT/config_unsloth_5wqa.yml","r") as f:
         config = yaml.safe_load(f)
     
     gpu_id = config["gpus"]
