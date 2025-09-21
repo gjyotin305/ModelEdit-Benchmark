@@ -286,15 +286,22 @@ def get_labels(input_tensor):
         result_tensor[i, last_29962_index:first_2_index_after_29962+1] = input_tensor[i, last_29962_index:first_2_index_after_29962+1]
     return result_tensor
 
-tokenizer = AutoTokenizer.from_pretrained("gjyotin305/qwen3_zsre_merged")
+# tokenizer = AutoTokenizer.from_pretrained("gjyotin305/qwen3_zsre_merged")  # Removed hardcoded tokenizer
+tokenizer = AutoTokenizer.from_pretrained("unsloth/llama-2-7b")
 
 def find_labels(tensor, pattern, eos_token_id):
+    print(tensor)
+    print(f"Tensor Shape: {tensor.shape}")
+    print(f"Pattern Shape: {pattern.shape}")
+    print(f"Eos Token Id: {eos_token_id}")
     result = torch.full_like(tensor, -100)
     
     for bn, row in enumerate(tensor):
         start_indice_i = find_sequence(row, pattern)
-        # print(tokenizer.batch_decode(row))
-        # print(f"Start Indice {start_indice_i}")
+        print("pattern:", pattern)
+        print(tokenizer.batch_decode(pattern))
+        print(tokenizer.batch_decode(row))
+        print(f"Start Indice {start_indice_i}")
         eos_indice = (row == eos_token_id).nonzero(as_tuple=True)[0].item()
         result[bn, start_indice_i:eos_indice+1] = tensor[bn, start_indice_i: eos_indice+1]
     

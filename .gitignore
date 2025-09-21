@@ -13,7 +13,7 @@ nerual_merge/
 res/
 
 # Dataset Files
-*.json
+
 
 # Distribution / packaging
 .Python
@@ -178,3 +178,9 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+
+indexing_neruals/
+experts/
+nerual_merge/
+outputs/

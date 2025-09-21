@@ -32,6 +32,7 @@ def merge_neruans(config):
     path = config["neruals_save_path"] + config["lab_tag"]+ "/" + config["modify_layer_names"][0] + "/"
     file_names = os.listdir(path)
     file_names = sorted(file_names, key=extract_number)
+    # print(file_names)
     all_tmp_weight = []
     assert len(file_names) == config["seq_length"]
     for file in file_names[:]:
@@ -45,7 +46,7 @@ def merge_neruans(config):
 
 
 def main():
-    with open("config_qwen.yml","r") as f:
+    with open("editing_techniques/MAAT/config_unsloth_5wqa.yml","r") as f:
         config = yaml.safe_load(f)
 
     class SCEN_select_expert(nn.Module):
@@ -64,15 +65,28 @@ def main():
         def forward(self, *args):
             if self.flag_first == 1:
                 self.router_res = torch.sigmoid(self.router(*args))
+
+                # ADD THE DEBUG PRINTS HERE:
+                print(f"All router confidences: {self.router_res[0,-1,:].tolist()}")
+                print(f"Expert indices: {list(range(len(self.router_res[0,-1,:].tolist())))}")
+                
                 max_val_index = torch.argmax(self.router_res[0,-1,:]).tolist()
                 max_val = torch.max(self.router_res[0,-1,:]).tolist()
+
+
+                # ADD THESE DEBUG PRINTS:
+                print(f"Router confidence: {max_val:.4f}, Threshold: {config['theta']}")
+                print(f"Selected expert: {max_val_index}, Router shape: {self.router_res.shape}")
+        
                 if max_val>config["theta"]: 
+                    print(f"✓ ACTIVATING EXPERT {max_val_index+1}")
                     # forward expert weight so load expert weight
                     self.expert_learning.weight = torch.load(self.experts_fload+"expert_learning_weight{}.pt".format(max_val_index+1))
                     self.expert_learning.to(self.router_res.device) 
                     self.flag_first =2
                     return self.expert_learning(*args)
                 else:
+                    print(f"✗ USING ORIGINAL MODEL (confidence {max_val:.4f} < threshold {config['theta']})")
                     # forward raw weight 
                     self.flag_first =3
                     return  self.layer(*args)
@@ -106,8 +120,8 @@ def main():
     with open(config["zsRE_edit_data"], "r") as f:
         edit_data = json.load(f)
 
-    with open(config["zsRE_forget_data"], "r") as f:
-        forget_data = json.load(f)
+    # with open(config["zsRE_forget_data"], "r") as f:
+    #     forget_data = json.load(f)
 
     print('=======================begin infer=======================')
 
@@ -127,10 +141,12 @@ def main():
 
     edit_success = 0
     count = 0
-    for index_train,train_item in tqdm(enumerate(edit_data[0:config["seq_length"]])):
+    for index_train,train_item in tqdm(enumerate(edit_data[1:config["seq_length"]])):
         count += 1
-        learning_prompt = zsre_prompt_q.format(train_item['src'])
-        answer_prompt = zsre_prompt_a.format(train_item['alt']) + tokenizer.eos_token
+        # learning_prompt = zsre_prompt_q.format(train_item['src'])
+        # answer_prompt = zsre_prompt_a.format(train_item['alt']) + tokenizer.eos_token
+        learning_prompt = zsre_prompt_q.format(train_item['question'])
+        answer_prompt = zsre_prompt_a.format(train_item['pred_answer']) + tokenizer.eos_token
         single_input_ids = tokenizer.encode(learning_prompt, return_tensors='pt').to(device)
 
         for pname in modify_layer_names:
@@ -139,20 +155,27 @@ def main():
             original_layer = getattr(parent, layer_name)
             original_layer.flag_first = 1
 
-        res = model.generate(single_input_ids, max_new_tokens=20, temperature=0.1, top_k=50, do_sample=True, num_beams=1)
+        res = model.generate(single_input_ids, max_new_tokens=100, temperature=0.1, top_k=50, do_sample=True, num_beams=1)
         res_string = tokenizer.decode(res.tolist()[0])
         # print(res_string)
-        print(f"ANSWER : {train_item['pred']}")
+        # print(f"Question : {train_item['src']}")
+        # print(f"ANSWER : {train_item['pred']}")
+        print(f"Question : {train_item['question']}")
+        print(f"ANSWER : {train_item['pred_answer']}")
 
         for pname in modify_layer_names:
             parent = parent_module(model, pname)
             layer_name = pname.split(".")[-1]
             original_layer = getattr(parent, layer_name)
 
-        if is_correct_new_schema(res_string, train_item["alt"], tokenizer.eos_token):
+        # if is_correct_new_schema(res_string, train_item["pred"], tokenizer.eos_token):
+        if is_correct_new_schema(res_string, train_item["pred_answer"], tokenizer.eos_token):
+            print("######################HIIIIIIIII################################")
             edit_success += 1
         else:
             pass
+    print(edit_success)
+    print(count)
     print(f"Reliability: {edit_success/count}")
 
     # edit_success = 0

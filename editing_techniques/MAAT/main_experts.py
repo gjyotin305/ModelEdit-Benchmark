@@ -61,13 +61,15 @@ def scen_expert(gpu_id,edit_layer_name,config):
 
     # save raw layer weight
     original_layer_list = []
-    for index_train,train_item in tqdm(enumerate(edit_data[:config["seq_length"]])):
+    for index_train,train_item in tqdm(enumerate(edit_data[1:config["seq_length"]])):
         # learning_prompt = zsre_prompt_q.format(train_item['src'])
         # answer_prompt = zsre_prompt_a.format(train_item['alt'])
         # learning_prompt = "[INST]" + train_item["Q"] + "[/INST]" llama27b
         # answer_prompt = train_item["A"]+ "</s>"
-        learning_prompt = zsre_prompt_q.format(train_item['src'])
-        answer_prompt = zsre_prompt_a.format(train_item['pred']) + tokenizer.eos_token
+        # learning_prompt = zsre_prompt_q.format(train_item['src'])
+        # answer_prompt = zsre_prompt_a.format(train_item['pred']) + tokenizer.eos_token
+        learning_prompt = zsre_prompt_q.format(['question'])
+        answer_prompt = zsre_prompt_a.format(train_item['pred_answer']) + tokenizer.eos_token
         single_input_ids = tokenizer.encode(learning_prompt + answer_prompt, return_tensors='pt').to(device)
         set100 = len(tokenizer.encode(learning_prompt))
         labels = single_input_ids.tolist()[0]
@@ -101,8 +103,36 @@ def scen_expert(gpu_id,edit_layer_name,config):
             optimizer.zero_grad(set_to_none=True)
             res = model(input_ids=single_input_ids,labels=single_labels)
             loss = res.loss
-            print(f"Loss Experts {loss.item()}")
+            # print(f"Loss Experts {loss.item()}")
+            print(f"Step {i}: Loss = {loss.item()}")
+            
             loss.backward()
+
+            # In your main_experts.py training loop, add this after loss.backward():
+
+            if i == 0 or i == 49 or i == 99:  # Check first and last iteration
+                print(f"=== STEP {i} DEBUG ===")
+                print(f"Loss: {loss.item():.6f}")
+                print(f"Target tokens: {tokenizer.decode([x for x in single_labels.tolist()[0] if x != -100])}")
+                
+                # Test what model outputs right now
+                with torch.no_grad():
+                    test_prompt = single_input_ids[:, :set100]  # Just the question part
+                    test_output = model.generate(test_prompt, max_new_tokens=100, do_sample=False, pad_token_id=tokenizer.eos_token_id)
+                    current_answer = tokenizer.decode(test_output[0][set100:])
+                    print(f"Current model output: {current_answer}")
+                
+                # Check if expert weights are actually changing
+                expert_layer = get_nested_attr(model, modify_layer_names[0]).expert_learning
+                if hasattr(expert_layer, '_initial_weight_mean'):
+                    weight_change = (expert_layer.weight.data - expert_layer._initial_weight_mean).abs().max()
+                    print(f"Max weight change so far: {weight_change:.6f}")
+                else:
+                    expert_layer._initial_weight_mean = expert_layer.weight.data.clone()
+                    print("Saved initial weights for comparison")
+                
+                print("========================")
+
             preconditioner.step()
             optimizer.step()
             
@@ -123,7 +153,7 @@ def scen_expert(gpu_id,edit_layer_name,config):
 
 def main():
     # load config
-    with open("config_qwen.yml","r") as f:
+    with open("editing_techniques/MAAT/config_unsloth_5wqa.yml","r") as f:
         config = yaml.safe_load(f)
     
     gpu_id = config["gpus"]
