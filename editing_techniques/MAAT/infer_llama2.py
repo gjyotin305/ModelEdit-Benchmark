@@ -53,8 +53,16 @@ def main():
         def forward(self, *args):
             if self.flag_first == 1:
                 self.router_res = torch.sigmoid(self.router(*args))
+
+                print(f"All router confidences: {self.router_res[0,-1,:].tolist()}")
+                print(f"Expert indices: {list(range(len(self.router_res[0,-1,:].tolist())))}")
+
                 max_val_index = torch.argmax(self.router_res[0,-1,:]).tolist()
                 max_val = torch.max(self.router_res[0,-1,:]).tolist()
+
+                # ADD THESE DEBUG PRINTS:
+                print(f"Router confidence: {max_val:.4f}, Threshold: {config['theta']}")
+                print(f"Selected expert: {max_val_index}, Router shape: {self.router_res.shape}")
                 print(f"Max Val {max_val} ")
                 if max_val>config["theta"]: 
                     # forward expert weight so load expert weight
