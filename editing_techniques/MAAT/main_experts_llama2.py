@@ -10,6 +10,7 @@ import random
 import torch.nn as nn
 import torch.nn.functional as F
 from utils import parent_module,get_model,get_nested_attr,check
+from utils_expert import KFAC
 from transformers import LlamaTokenizer, LlamaForCausalLM, GenerationConfig
 
 # set seed 
@@ -87,13 +88,15 @@ def scen_expert(gpu_id,edit_layer_name,config):
         
         check(model)
         optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
+        preconditioner = KFAC(model, 0.1, update_freq=10)
         for i in range(config["experts_step"]):
             res = model(input_ids=single_input_ids,labels=single_labels)
             loss = res.loss
             print(f"Loss Experts {loss.item()}")
             loss.backward()
+            preconditioner.step()
             optimizer.step()
-            optimizer.zero_grad()  
+            optimizer.zero_grad(set_to_none=True)  
 
         # save weight
         expert_learning_path = config["expert_save_path"]+config["lab_tag"]+"/"+edit_layer_name[0]+"/"  
